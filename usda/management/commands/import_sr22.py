@@ -12,6 +12,7 @@ from django.db import transaction, DEFAULT_DB_ALIAS, reset_queries
 from usda.models import Food, FoodGroup, Weight, Nutrient, Footnote, \
                         DataSource, DataDerivation, NutrientData, Source,\
                         FOOTNOTE_DESC, FOOTNOTE_MEAS, FOOTNOTE_NUTR
+from usda.management.commands.unicode_dict_reader import UnicodeDictReader
 
 
 # Number of nutrient data items to read at once. Setting this too high may cause
@@ -33,6 +34,7 @@ class Command(BaseCommand):
         optparse.make_option('--derivation', action='store_true', dest='derivation', help='Create/Update data derivations.'),
         optparse.make_option('--source', action='store_true', dest='source', help='Create/Update sources.'),
         optparse.make_option('--data', action='store_true', dest='data', help='Create/Update nutrient data.'),
+        optparse.make_option('--encoding', action='store', dest='encoding', help='Specify the src file encoding. Defaults to cp1252.', default='cp1252')
     )
     help = 'Updates/Created all SR22 data.'
     
@@ -73,6 +75,7 @@ class Command(BaseCommand):
         parse_derivation = options.get('derivation')
         parse_source = options.get('source')
         parse_data = options.get('data')
+        encoding = options.get('encoding')
         
         if not os.path.exists(options['filename']):
             CommandError('%s does not exist' % options['filename'])
@@ -107,13 +110,13 @@ class Command(BaseCommand):
             create_update_food_groups(''.join([byte for byte in zip_file.read(FD_GROUP)]).splitlines())
         if parse_all or parse_food:
             logging.info('Reading %s...' % FOOD_DES)
-            create_update_foods(''.join([byte for byte in zip_file.read(FOOD_DES)]).splitlines())
+            create_update_foods(''.join([byte for byte in zip_file.read(FOOD_DES)]).splitlines(), encoding)
         if parse_all or parse_weight:
             logging.info('Reading %s...' % WEIGHT)
             create_update_weights(''.join([byte for byte in zip_file.read(WEIGHT)]).splitlines())
         if parse_all or parse_nutrient:
             logging.info('Reading %s...' % NUTR_DEF)
-            create_update_nutrients(''.join([byte for byte in zip_file.read(NUTR_DEF)]).splitlines())
+            create_update_nutrients(''.join([byte for byte in zip_file.read(NUTR_DEF)]).splitlines(), encoding)
         if parse_all or parse_footnote:
             logging.info('Reading %s...' % FOOTNOTE)
             create_update_footnotes(''.join([byte for byte in zip_file.read(FOOTNOTE)]).splitlines())
@@ -168,20 +171,21 @@ def create_update_food_groups(data):
     logging.info('Updated %d food groups' % total_updated)
 
 
-def create_update_foods(data):
+def create_update_foods(data, encoding):
     total_created = 0
     total_updated = 0
     
     logging.info('Processing %d foods' % len(data))
     
-    for row in csv.DictReader(
+    for row in UnicodeDictReader(
         data,
         fieldnames=(
             'ndb_no', 'fdgrp_cd', 'long_desc', 'short_desc', 'com_name',
             'manufac_name', 'survey', 'ref_desc', 'refuse', 'sci_name',
             'n_factor', 'pro_factor', 'fat_factor', 'cho_factor'
         ),
-        delimiter='^', quotechar='~'
+        delimiter='^', quotechar='~',
+        encoding=encoding
     ):
         created = False
         
@@ -271,17 +275,18 @@ def create_update_weights(data):
     logging.info('Updated %d weights' % total_updated)
 
 
-def create_update_nutrients(data):
+def create_update_nutrients(data, encoding):
     total_created = 0
     total_updated = 0
     
     logging.info('Processing %d nutrients' % len(data))
     
-    for row in csv.DictReader(
+    for row in UnicodeDictReader(
         data, fieldnames=(
             'nutr_no', 'units', 'tagname', 'nutrdesc', 'num_dec', 'sr_order'
         ),
-        delimiter='^', quotechar='~'
+        delimiter='^', quotechar='~',
+        encoding=encoding
     ):
         created = False
         
