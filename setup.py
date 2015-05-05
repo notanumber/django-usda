@@ -21,7 +21,7 @@ setup(
     url='http://github.com/notanumber/django-usda',
     license='http://www.opensource.org/licenses/bsd-license.php',
     packages=[
-        'usda'
+        'usda',
         'usda.management',
         'usda.management.commands',
     ],
